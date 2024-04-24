@@ -211,3 +211,34 @@ If you use Melting Pot in your work, please cite the accompanying article:
 ## Disclaimer
 
 This is not an officially supported Google product.
+
+## Remote SSH setup
+In ssh config, add ezipe to Users under /.ssh/config host a100-us-west3
+Install remote ssh extension on VSCode
+SSH into the a100-us-west3
+Switch user to ezipe
+
+`conda activate py311
+Activate virtual env
+```
+python -m venv venv
+source venv/bin/activate
+```
+Install necesarry dependencies
+```
+  pip install -e .[dev]
+  pip install -r requirements.txt
+  pip install av
+  pip install torchvision
+  export PYTHONPATH=$PWD
+  conda install -c anaconda cudnn
+  python SoicalEnvDesign/apple_picking_game.py
+  sudo apt install ffmpeg
+  pip install -m huggingface_hub
+```
+WandB authentication and run!
+```
+  export WANDB_API_KEY=<YOUR_WANDB_API_KEY>
+  python SocialEnvDesign/apple_picking_game.py --track --wandb-project-name benchmarl --wandb-entity=founding
+```
+--track signifies that we will use wandb instead of huggingface

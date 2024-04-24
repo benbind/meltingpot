@@ -18,12 +18,12 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
 
-from . import huggingface_upload
-from . import utils
-from .principal import Principal
-from .principal_utils import vote
-from .vector_constructors import pettingzoo_env_to_vec_env_v1
-from .vector_constructors import sb3_concat_vec_envs_v1
+from SocialEnvDesign import huggingface_upload
+from SocialEnvDesign import utils
+from SocialEnvDesign.principal import Principal
+from SocialEnvDesign.principal_utils import vote
+from SocialEnvDesign.vector_constructors import pettingzoo_env_to_vec_env_v1
+from SocialEnvDesign.vector_constructors import sb3_concat_vec_envs_v1
 
 
 def parse_args():
@@ -44,7 +44,7 @@ def parse_args():
         help="the entity (team) of wandb's project")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="whether to capture videos of the agent performances")
-    parser.add_argument("--video-freq", type=int, default=20,
+    parser.add_argument("--video-freq", type=int, default=3,
         help="capture video every how many episodes?")
     parser.add_argument("--save-model", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="whether to save model parameters")
@@ -62,11 +62,11 @@ def parse_args():
         help="the number of game frames to stack together")
     parser.add_argument("--num-episodes", type=int, default=100000,
         help="the number of steps in an episode")
-    parser.add_argument("--episode-length", type=int, default=1000,
+    parser.add_argument("--episode-length", type=int, default=1400,
         help="the number of steps in an episode")
     parser.add_argument("--tax-annealment-proportion", type=float, default=0.02,
         help="proportion of episodes over which to linearly anneal tax cap multiplier")
-    parser.add_argument("--sampling-horizon", type=int, default=200,
+    parser.add_argument("--sampling-horizon", type=int, default=100,
         help="the number of timesteps between policy update iterations")
     parser.add_argument("--tax-period", type=int, default=50,
         help="the number of timesteps tax periods last (at end of period tax vals updated and taxes applied)")
@@ -96,6 +96,8 @@ def parse_args():
         help="the maximum norm for the gradient clipping")
     parser.add_argument("--target-kl", type=float, default=None,
         help="the target KL divergence threshold")
+    parser.add_argument("--fixed-tax", type=str, default=False,
+        help="Toggle and set specific tax rates")
     args = parser.parse_args()
     return args
 
@@ -224,7 +226,7 @@ if __name__ == "__main__":
     env_config = substrate.get_config(env_name)
 
     num_players = len(env_config.default_player_roles)
-    principal = Principal(num_players, args.num_parallel_games, "egalitarian")
+    principal = Principal(num_players, args.num_parallel_games, "egalitarian", args.fixed_tax)
 
     env = utils.parallel_env(
         max_cycles=args.sampling_horizon,
@@ -338,7 +340,7 @@ if __name__ == "__main__":
                 principal_action, principal_logprob, _, principal_value = principal_agent.get_action_and_value(principal_next_obs, next_cumulative_reward)
                 principal_values[step] = principal_value.flatten()
 
-            if(episode_step % args.tax_period == 0):
+            if(episode_step % args.tax_period == 0 and not principal.fixed_tax):
                 # this `principal_action` is the one that was fed cumulative reward of last step of previous tax period
                 # so it is acting on the full wealth accumulated last tax period and an observation of the last frame
                 principal_actions[step] = principal_action
@@ -368,16 +370,27 @@ if __name__ == "__main__":
             principal.report_reward(extrinsic_reward)
 
             # mix personal and nearby rewards
+            # intrinsic_reward = np.zeros_like(extrinsic_reward)
+            # nearby = torch.stack([torch.Tensor(info[i][2]) for i in range(0,num_envs)]).to(device)
+            # for game_id in range(args.num_parallel_games):
+            #     game_reward = extrinsic_reward[game_id*num_agents:(game_id+1)*num_agents]
+            #     for player_id in range(num_agents):
+            #         env_id = player_id + game_id*num_agents
+            #         w = selfishness[player_id]
+            #         nearby_reward = torch.sum(nearby[env_id] * game_reward)
+            #         intrinsic_reward[env_id] = w*extrinsic_reward[env_id] + (1-w)*nearby_reward
+
+            # mix personal and nearby rewards
             intrinsic_reward = np.zeros_like(extrinsic_reward)
             nearby = torch.stack([torch.Tensor(info[i][2]) for i in range(0,num_envs)]).to(device)
             for game_id in range(args.num_parallel_games):
                 game_reward = extrinsic_reward[game_id*num_agents:(game_id+1)*num_agents]
+                game_reward = torch.tensor(game_reward).to(nearby.device)
                 for player_id in range(num_agents):
                     env_id = player_id + game_id*num_agents
                     w = selfishness[player_id]
-                    nearby_reward = sum(nearby[env_id] * game_reward)
+                    nearby_reward = torch.sum(nearby[env_id] * game_reward)
                     intrinsic_reward[env_id] = w*extrinsic_reward[env_id] + (1-w)*nearby_reward
-
             # make sure tax is applied after extrinsic reward is used for intrinsic reward calculation
             if (episode_step+1) % args.tax_period == 0:
                 # last step of tax period
@@ -389,6 +402,7 @@ if __name__ == "__main__":
                 player_id = env_id % num_agents
                 v = trust[player_id]
                 reward[env_id] = v*extrinsic_reward[env_id] + (1-v)*intrinsic_reward[env_id]
+                reward[env_id] = extrinsic_reward[env_id]
 
             principal_next_obs = torch.stack([torch.Tensor(info[i][1]) for i in range(0,num_envs,num_agents)]).to(device)
             principal_reward = principal.objective(reward) - prev_objective_val
@@ -597,7 +611,6 @@ if __name__ == "__main__":
         # one more policy update done
         num_updates_for_this_ep += 1
         print(f"Completed policy update {num_updates_for_this_ep} for episode {current_episode} - used steps {start_step} through {end_step}")
-
         if num_updates_for_this_ep == num_policy_updates_per_ep:
             # episode finished
 
@@ -610,9 +623,10 @@ if __name__ == "__main__":
                 except FileExistsError:
                     pass
                 torchvision.io.write_video(f"./videos_{run_name}/episode_{current_episode}.mp4", video, fps=20)
-                huggingface_upload.upload(f"./videos_{run_name}", run_name)
-                if args.track:
-                    wandb.log({"video": wandb.Video(f"./videos_{run_name}/episode_{current_episode}.mp4")})
+                # huggingface_upload.upload(f"./videos_{run_name}", run_name)
+                # if args.track:
+                print("logging")
+                wandb.log({"video": wandb.Video(f"./videos_{run_name}/episode_{current_episode}.mp4")})
                 os.remove(f"./videos_{run_name}/episode_{current_episode}.mp4")
 
             writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], current_episode)
