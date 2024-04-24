@@ -33,3 +33,6 @@ __pycache__/
 /meltingpot/assets/
 
 wandb
+
+*.out
+*.pt

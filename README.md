@@ -235,6 +235,8 @@ Install necesarry dependencies
   python SoicalEnvDesign/apple_picking_game.py
   sudo apt install ffmpeg
   pip install -m huggingface_hub
+   pip install jax=="0.4.23" jaxlib=="0.4.23"
+   source venv/bin/activate.fish
 ```
 WandB authentication and run!
 ```
@@ -242,3 +244,10 @@ WandB authentication and run!
   python SocialEnvDesign/apple_picking_game.py --track --wandb-project-name benchmarl --wandb-entity=founding
 ```
 --track signifies that we will use wandb instead of huggingface
+
+ conda activate py311 
+ source venv/bin/activate.fish
+ export LD_LIBRARY_PATH=
+ export WANDB_API_KEY=1873726b22c0820e94789e2d31b601bc9a78e7c8
+ export PYTHONPATH=$PWD
+ python run_parallel.py

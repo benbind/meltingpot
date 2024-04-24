@@ -5,12 +5,26 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "sed",
+      "type": "python",
+      "request": "launch",
+      "program": "SocialEnvDesign/apple_picking_game.py",
+      "args": ["--sigma-vals", "3", "--fixed-tax", "3"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "LD_LIBRARY_PATH": "",
+      },
+      "justMyCode": true
+    },
+
+    {
       "name": "Python: cleanrl",
       "type": "python",
       "request": "launch",
       "module": "examples.pettingzoo.cleanrl_train",
       "justMyCode": true
     },
+
     {
       "name": "Python: Module",
       "type": "python",
