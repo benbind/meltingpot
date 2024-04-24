@@ -3,7 +3,7 @@ import numpy as np
 
 class Principal:
 
-    def __init__(self, num_players, num_games, starting_objective, fixed_tax=None) -> None:
+    def __init__(self, num_players, num_games, starting_objective, fixed_tax=None, sigma_vals=None) -> None:
         self.set_objective(starting_objective)
         self.num_players = num_players
         self.num_games = num_games
@@ -12,6 +12,7 @@ class Principal:
         self.__tax_brackets = [(1,10),(11,20),(21,10000)]
         self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(num_games)}
         self.fixed_tax = fixed_tax
+        self.sigma_vals = sigma_vals
         if self.fixed_tax:
           self.fixed_tax_vals(self.fixed_tax)
 
@@ -24,16 +25,21 @@ class Principal:
                   if tax_val != 11:
                       self.tax_vals[f"game_{game_id}"][bracket_idx] = tax_val/10
 
+    def sigma_tax_vals(self, selfishness):
+        sigma_avg = selfishness.sum()/self.num_players
+        base_tax = 1-sigma_avg
+        self.tax_vals = {f"game_{idx}" : [base_tax*.5,base_tax,min(1,base_tax*1.5)] for idx in range(self.num_games)}
+
+
     def fixed_tax_vals(self, fixed_tax):
         if fixed_tax == "1":
-          self.__tax_brackets = [(1,10), (11,20), (21, 10000)]
-          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,5,10] for idx in range(self.num_games)}
+          self.tax_vals = {f"game_{idx}" : [0,.5,1] for idx in range(self.num_games)}
         if fixed_tax == "2":
-          self.__tax_brackets = [(1,5), (6,15), (16, 10000)]
-          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
+          self.tax_vals = {f"game_{idx}" : [.1,.3,.7] for idx in range(self.num_games)}
         if fixed_tax == "3":
-          self.__tax_brackets = [(1,5), (6,15), (16, 10000)]
-          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
+          self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
+        else:
+          self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
 
 
     def set_objective(self, objective):
@@ -66,14 +72,12 @@ class Principal:
 
     def __tax_calculator(self, wealth, brackets, tax_vals):
         tax = 0
-        for i in range(len(brackets)):
+        for i, (lower,upper) in enumerate(brackets):
             (lower, upper) = brackets[i]
             tax_val = tax_vals[i]
-            if wealth >= lower:
-                if wealth >= upper:
-                    tax += (1+upper-lower)*tax_val
-                else:
-                    tax += (1+wealth-lower)*tax_val
+            if wealth > lower:
+                applicable_wealth=min(wealth, upper) - lower + 1
+                tax += applicable_wealth * tax_val
         return tax
 
 

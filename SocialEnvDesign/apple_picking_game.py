@@ -96,8 +96,10 @@ def parse_args():
         help="the maximum norm for the gradient clipping")
     parser.add_argument("--target-kl", type=float, default=None,
         help="the target KL divergence threshold")
-    parser.add_argument("--fixed-tax", type=str, default=False,
+    parser.add_argument("--fixed-tax", type=str, default=True,
         help="Toggle and set specific tax rates")
+    parser.add_argument("--sigma-vals", type=str, default=False,
+        help="Set population sigma values")
     args = parser.parse_args()
     return args
 
@@ -226,7 +228,7 @@ if __name__ == "__main__":
     env_config = substrate.get_config(env_name)
 
     num_players = len(env_config.default_player_roles)
-    principal = Principal(num_players, args.num_parallel_games, "egalitarian", args.fixed_tax)
+    principal = Principal(num_players, args.num_parallel_games, "egalitarian", args.fixed_tax, args.sigma_vals)
 
     env = utils.parallel_env(
         max_cycles=args.sampling_horizon,
@@ -252,7 +254,23 @@ if __name__ == "__main__":
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     voting_values = np.random.uniform(size=[num_agents])
-    selfishness = np.random.uniform(size=[num_agents])
+
+    if args.sigma_vals:
+      if args.sigma_vals=="1":
+        selfishness= np.ones(num_agents)
+      elif args.sigma_vals=="2":
+        selfishness= np.zeros(num_agents)
+      elif args.sigma_vals=="3":
+        ones_count = num_agents // 2
+        zeroes_count = num_agents - ones_count
+        selfishness = np.concatenate(np.ones(ones_count),np.zeroes(zeroes_count))
+      else:
+        selfishness = np.random.uniform(size=[num_agents])
+
+      principal.sigma_tax_vals(selfishness)
+    else:
+        selfishness = np.random.uniform(size=[num_agents])
+
     trust = np.random.uniform(size=[num_agents])
 
     agent = Agent(envs).to(device)
@@ -293,7 +311,8 @@ if __name__ == "__main__":
     start_time = time.time()
 
     prev_objective_val = 0
-    tax_values = []
+    tax_values = principal.tax_vals
+    print(tax_values)
     tax_frac = 1
 
     # fill this with sampling horizon chunks for recording if needed
@@ -611,7 +630,7 @@ if __name__ == "__main__":
         # one more policy update done
         num_updates_for_this_ep += 1
         print(f"Completed policy update {num_updates_for_this_ep} for episode {current_episode} - used steps {start_step} through {end_step}")
-        if num_updates_for_this_ep == num_policy_updates_per_ep:
+        if num_updates_for_this_ep == 5:
             # episode finished
 
             if args.capture_video and current_episode%args.video_freq == 0:
@@ -656,7 +675,7 @@ if __name__ == "__main__":
                 for tax_period in range(len(tax_values)):
                   tax_step = (current_episode-1)*args.episode_length//args.tax_period + tax_period
                   for bracket in range(0,3):
-                    writer.add_scalar(f"charts/tax_value_game{game_id}_bracket_{bracket+1}", np.array(tax_values[tax_period][f"game_{game_id}"][bracket]), tax_step)
+                    writer.add_scalar(f"charts/tax_value_game{game_id}_bracket_{bracket+1}", tax_values[tax_period][f"game_{game_id}"][bracket], tax_step)
 
             print(f"Tax values this episode (for each period): {tax_values}, capped by multiplier {tax_frac}")
             print("*******************************")
