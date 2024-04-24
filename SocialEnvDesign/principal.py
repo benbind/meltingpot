@@ -3,7 +3,7 @@ import numpy as np
 
 class Principal:
 
-    def __init__(self, num_players, num_games, starting_objective) -> None:
+    def __init__(self, num_players, num_games, starting_objective, fixed_tax=None) -> None:
         self.set_objective(starting_objective)
         self.num_players = num_players
         self.num_games = num_games
@@ -11,16 +11,29 @@ class Principal:
         self.collected_tax = {f"game_{idx}" : 0 for idx in range(num_games)}
         self.__tax_brackets = [(1,10),(11,20),(21,10000)]
         self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(num_games)}
-
+        self.fixed_tax = fixed_tax
+        if self.fixed_tax:
+          self.fixed_tax_vals(self.fixed_tax)
 
     def update_tax_vals(self, actions):
-        for game_id in range(self.num_games):
-            tax_choices = actions[game_id]
-            for bracket_idx in range(len(tax_choices)):
-                tax_val = tax_choices[bracket_idx].item()
-                if tax_val != 11:
-                    self.tax_vals[f"game_{game_id}"][bracket_idx] = tax_val/10
+        if not self.fixed_tax:
+          for game_id in range(self.num_games):
+              tax_choices = actions[game_id]
+              for bracket_idx in range(len(tax_choices)):
+                  tax_val = tax_choices[bracket_idx].item()
+                  if tax_val != 11:
+                      self.tax_vals[f"game_{game_id}"][bracket_idx] = tax_val/10
 
+    def fixed_tax_vals(self, fixed_tax):
+        if fixed_tax == "1":
+          self.__tax_brackets = [(1,10), (11,20), (21, 10000)]
+          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,5,10] for idx in range(self.num_games)}
+        if fixed_tax == "2":
+          self.__tax_brackets = [(1,5), (6,15), (16, 10000)]
+          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
+        if fixed_tax == "3":
+          self.__tax_brackets = [(1,5), (6,15), (16, 10000)]
+          self.tax_vals = self.tax_vals = {f"game_{idx}" : [0,0,0] for idx in range(self.num_games)}
 
 
     def set_objective(self, objective):
