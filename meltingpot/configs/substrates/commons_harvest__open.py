@@ -65,24 +65,29 @@ WA    AAAAA  AAAAA    AW
 W      AAA    AAA      W
 W       A      A       W
 W  A                A  W
-W AAA  Q        Q  AAA W
+W AAA  B        H  AAA W
 WAAAAA            AAAAAW
 W AAA              AAA W
 W  A                A  W
 W                      W
 W                      W
+W    P  E  N  I  S     W
 W                      W
-W  PPPPPPPPPPPPPPPPPP  W
-W PPPPPPPPPPPPPPPPPPPP W
-WPPPPPPPPPPPPPPPPPPPPPPW
+W                      W
+W                      W
 WWWWWWWWWWWWWWWWWWWWWWWW
 """
 
 # `prefab` determines which prefab game object to use for each `char` in the
 # ascii map.
 CHAR_PREFAB_MAP = {
-    "P": {"type": "all", "list": ["floor", "spawn_point"]},
-    "Q": {"type": "all", "list": ["floor", "inside_spawn_point"]},
+    "B": {"type": "all", "list": ["floor", "spawn3"]},
+    "H": {"type": "all", "list": ["floor", "spawn4"]},
+    "P": {"type": "all", "list": ["floor", "spawn1"]},
+    "E": {"type": "all", "list": ["floor", "spawn2"]},
+    "N": {"type": "all", "list": ["floor", "spawn5"]},
+    "I": {"type": "all", "list": ["floor", "spawn6"]},
+    "S": {"type": "all", "list": ["floor", "spawn7"]},
     " ": "floor",
     "W": "wall",
     "A": {"type": "all", "list": ["grass", "apple"]},
@@ -207,7 +212,7 @@ WALL = {
     ]
 }
 
-SPAWN_POINT = {
+SPAWN_POINT1 = {
     "name": "spawnPoint",
     "components": [
         {
@@ -217,7 +222,7 @@ SPAWN_POINT = {
                 "stateConfigs": [{
                     "state": "spawnPoint",
                     "layer": "alternateLogic",
-                    "groups": ["spawnPoints"]
+                    "groups": ["spawn1"]
                 }],
             }
         },
@@ -227,7 +232,7 @@ SPAWN_POINT = {
     ]
 }
 
-INSIDE_SPAWN_POINT = {
+SPAWN_POINT2 = {
     "name": "spawnPoint",
     "components": [
         {
@@ -237,7 +242,102 @@ INSIDE_SPAWN_POINT = {
                 "stateConfigs": [{
                     "state": "spawnPoint",
                     "layer": "alternateLogic",
-                    "groups": ["insideSpawnPoints"]
+                    "groups": ["spawn2"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+SPAWN_POINT3 = {
+    "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["spawn3"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+SPAWN_POINT4 = {
+    "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["spawn4"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+SPAWN_POINT5 = {
+    "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["spawn5"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+SPAWN_POINT6 = {
+    "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["spawn6"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+SPAWN_POINT7 = {
+    "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["spawn7"]
                 }],
             }
         },
@@ -400,8 +500,13 @@ def create_prefabs(regrowth_radius=-1.0,
       "floor": FLOOR,
       "grass": GRASS,
       "wall": WALL,
-      "spawn_point": SPAWN_POINT,
-      "inside_spawn_point": INSIDE_SPAWN_POINT,
+      "spawn1": SPAWN_POINT1,
+      "spawn2": SPAWN_POINT2,
+      "spawn3": SPAWN_POINT3,
+      "spawn4": SPAWN_POINT4,
+      "spawn5": SPAWN_POINT5,
+      "spawn6": SPAWN_POINT6,
+      "spawn7": SPAWN_POINT7,
   }
   prefabs["apple"] = create_apple_prefab(
       regrowth_radius=regrowth_radius,
@@ -472,6 +577,7 @@ def create_avatar_object(player_idx: int,
                   "waitState": "playerWait",
                   "speed": 1.0,
                   "spawnGroup": spawn_group,
+                  "randomizeInitialOrientation": False, 
                   "postInitialSpawnGroup": "spawnPoints",
                   "actionOrder": ["move", "turn", "fireZap"],
                   "actionSpec": {
@@ -518,10 +624,7 @@ def create_avatar_objects(num_players):
   """Returns list of avatar objects of length 'num_players'."""
   avatar_objects = []
   for player_idx in range(0, num_players):
-    spawn_group = "spawnPoints"
-    if player_idx < 2:
-      # The first two player slots always spawn closer to the apples.
-      spawn_group = "insideSpawnPoints"
+    spawn_group = f"spawn{player_idx+1}"
 
     game_object = create_avatar_object(player_idx,
                                        TARGET_SPRITE_SELF,
@@ -575,6 +678,7 @@ def build(
       levelDirectory="meltingpot/lua/levels",
       numPlayers=num_players,
       # Define upper bound of episode length since episodes end stochastically.
+      #TODO: fix this
       maxEpisodeLengthFrames=5000,
       spriteSize=8,
       topology="BOUNDED",  # Choose from ["BOUNDED", "TORUS"],
